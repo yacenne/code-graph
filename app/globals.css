@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-border: var(--surface-border);
+  --color-muted-text: var(--muted-text);
+  --color-accent: var(--accent);
+  --color-incoming: var(--incoming);
+  --color-outgoing: var(--outgoing);
+  --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+:root {
+  /* Light theme: near white surfaces */
+  --background: #fafafa;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --surface-subtle: #f4f4f5;
+  --surface-border: #e4e4e7;
+  --muted-text: #71717a;
+  --accent: #2563eb;
+  --incoming: #16a34a;
+  --outgoing: #d97706;
+}
+
+:root.dark,
+:root[data-theme="dark"] {
+  /* Dark theme: near black surfaces */
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --surface: #121215;
+  --surface-subtle: #18181b;
+  --surface-border: #27272a;
+  --muted-text: #a1a1aa;
+  --accent: #3b82f6;
+  --incoming: #22c55e;
+  --outgoing: #f59e0b;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.light) {
+    --background: #09090b;
+    --foreground: #f4f4f5;
+    --surface: #121215;
+    --surface-subtle: #18181b;
+    --surface-border: #27272a;
+    --muted-text: #a1a1aa;
+    --accent: #3b82f6;
+    --incoming: #22c55e;
+    --outgoing: #f59e0b;
   }
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  margin: 0;
 }
