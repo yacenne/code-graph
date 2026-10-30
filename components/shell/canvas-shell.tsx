@@ -33,6 +33,11 @@ export function CanvasShell({
   const [selection, setSelection] = useState<SelectionState | null>(null);
   const [hoveredTarget, setHoveredTarget] = useState<HoverTarget | null>(null);
   const [activeTab, setActiveTab] = useState<"structure" | "explanation">("structure");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const handleCategoryClick = useCallback((categoryId: string) => {
+    setSelectedCategoryId((prev) => (prev === categoryId ? null : categoryId));
+  }, []);
 
   // Clicking a file path in the detail pane selects it and opens its containing panel if needed
   const handleSelectFile = useCallback(
@@ -96,32 +101,56 @@ export function CanvasShell({
           {/* Header */}
           <div className="flex h-8 items-center justify-between border-b border-surface-border px-3 text-[11px] font-mono uppercase tracking-wider text-muted-text">
             <span>Categories</span>
-            <span className="text-[10px] tabular-nums">
-              {categories.length}
-            </span>
+            {selectedCategoryId ? (
+              <button
+                type="button"
+                onClick={() => setSelectedCategoryId(null)}
+                className="text-[10px] text-accent hover:underline lowercase cursor-pointer"
+                title="Reset category filter"
+              >
+                reset
+              </button>
+            ) : (
+              <span className="text-[10px] tabular-nums">
+                {categories.length}
+              </span>
+            )}
           </div>
 
           {/* Categories List */}
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {categories.map((category) => (
-              <div
-                key={category.id}
-                className="flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono text-foreground hover:bg-surface-subtle transition-colors cursor-default"
-                title={`${category.name}: ${category.count} files`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="h-2.5 w-2.5 rounded-xs shrink-0"
-                    style={{ backgroundColor: category.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="truncate text-[12px]">{category.name}</span>
-                </div>
-                <span className="text-[11px] text-muted-text tabular-nums ml-2">
-                  {category.count}
-                </span>
-              </div>
-            ))}
+            {categories.map((category) => {
+              const isCategorySelected = selectedCategoryId === category.id;
+              const isOtherCategorySelected = selectedCategoryId !== null && !isCategorySelected;
+
+              return (
+                <button
+                  type="button"
+                  key={category.id}
+                  onClick={() => handleCategoryClick(category.id)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-xs font-mono transition-all cursor-pointer text-left border ${
+                    isCategorySelected
+                      ? "bg-accent/15 border-accent text-foreground font-semibold shadow-xs"
+                      : isOtherCategorySelected
+                      ? "border-transparent opacity-40 hover:opacity-100 hover:bg-surface-subtle text-muted-text"
+                      : "border-transparent text-foreground hover:bg-surface-subtle hover:border-surface-border"
+                  }`}
+                  title={`${category.name}: ${category.count} files (Click to dim other categories)`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="h-2.5 w-2.5 rounded-xs shrink-0"
+                      style={{ backgroundColor: category.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate text-[12px]">{category.name}</span>
+                  </div>
+                  <span className="text-[11px] text-muted-text tabular-nums ml-2">
+                    {category.count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Left Rail Summary Footer */}
@@ -167,6 +196,9 @@ export function CanvasShell({
               onOpenNodeIdsChange={setOpenNodeIds}
               hoveredTarget={hoveredTarget}
               onHoverTargetChange={handleHoverTargetChange}
+              selectedCategoryId={selectedCategoryId}
+              onSelectFile={handleSelectFile}
+              onSelectNode={handleSelectNode}
             />
           </div>
         </main>

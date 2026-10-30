@@ -18,6 +18,8 @@ export const OpenPanelNode = memo(function OpenPanelNode({
     selectedFilePath,
     hoveredFilePath,
     activeFilePaths,
+    categoryMatchCount,
+    selectedCategoryId,
     onClose,
     onSelectNode,
     onSelectFile,
@@ -76,12 +78,20 @@ export const OpenPanelNode = memo(function OpenPanelNode({
             <span className="font-mono text-xs font-bold text-foreground truncate">
               {nodeData.label}
             </span>
-            <span className="font-mono text-[10px] text-muted-text tabular-nums shrink-0">
-              ({nodeData.fileCount})
-            </span>
+            {selectedCategoryId ? (
+              <span className="font-mono text-[9px] text-accent font-semibold tabular-nums shrink-0 bg-accent/15 px-1 py-0.5 rounded border border-accent/30">
+                {categoryMatchCount ?? 0} matched
+              </span>
+            ) : (
+              <span className="font-mono text-[10px] text-muted-text tabular-nums shrink-0">
+                ({nodeData.fileCount})
+              </span>
+            )}
           </div>
           <div className="font-mono text-[9px] text-muted-text truncate">
-            in: {nodeData.fanIn} · out: {nodeData.fanOut}
+            {selectedCategoryId
+              ? `${nodeData.fileCount} files · in: ${nodeData.fanIn} · out: ${nodeData.fanOut}`
+              : `in: ${nodeData.fanIn} · out: ${nodeData.fanOut}`}
           </div>
         </div>
 
@@ -105,6 +115,7 @@ export const OpenPanelNode = memo(function OpenPanelNode({
           const isFileActive = activeFilePaths.has(file.path);
           const categoryId = classifyFileCategory(file.path);
           const color = CATEGORY_TOKENS[categoryId]?.color ?? "#71717a";
+          const isCategoryMatch = !selectedCategoryId || categoryId === selectedCategoryId;
 
           // Short file name display
           const fileName = file.path.includes("/")
@@ -126,7 +137,10 @@ export const OpenPanelNode = memo(function OpenPanelNode({
                 e.stopPropagation();
                 onHoverFile?.(null);
               }}
-              className={`relative h-7 px-3 flex items-center justify-between font-mono text-[11px] cursor-pointer transition-colors ${
+              style={{
+                opacity: !isCategoryMatch && !isFileHovered && !isFileSelected ? 0.25 : 1,
+              }}
+              className={`relative h-7 px-3 flex items-center justify-between font-mono text-[11px] cursor-pointer transition-all ${
                 isFileSelected
                   ? "bg-accent/15 text-foreground font-semibold ring-1 ring-accent/30"
                   : isFileHovered

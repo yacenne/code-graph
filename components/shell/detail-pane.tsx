@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import type { ParserResult } from "@/lib/parser/types";
 import type { FoldingResult } from "@/lib/canvas/folding";
 import type { SelectionState, HoverTarget } from "@/lib/canvas/layout";
@@ -10,6 +10,11 @@ import {
   computeFolderDetail,
   identifyFileKind,
 } from "@/lib/canvas/detail";
+import {
+  transitiveWalk,
+  computeRepositoryInsights,
+} from "@/lib/canvas/graph-math";
+import { InsightsPanel } from "@/components/canvas/insights-panel";
 
 export interface DetailPaneProps {
   data: ParserResult;
@@ -58,6 +63,31 @@ export function DetailPane({
     }
     return null;
   }, [selection, folding]);
+
+  // Transitive walk mode for selected file: 'direct' | 'blastRadius' | 'dependencyChain'
+  const [transitiveMode, setTransitiveMode] = useState<"direct" | "blastRadius" | "dependencyChain">("direct");
+
+  // Repository insights in resting state (starts collapsed per spec)
+  const [repoInsightsOpen, setRepoInsightsOpen] = useState(false);
+  const repoInsights = useMemo(() => computeRepositoryInsights(data), [data]);
+
+  // Quick file map for metadata lookup during transitive walks
+  const fileMap = useMemo(() => new Map(data.files.map((f) => [f.path, f])), [data.files]);
+
+  // Pure transitive walks computed instantly over edge list (2 levels deep)
+  const blastRadiusItems = useMemo(() => {
+    if (selection?.type === "file" && selection.path) {
+      return transitiveWalk(data.edges, selection.path, "blastRadius", 2);
+    }
+    return [];
+  }, [selection, data.edges]);
+
+  const dependencyChainItems = useMemo(() => {
+    if (selection?.type === "file" && selection.path) {
+      return transitiveWalk(data.edges, selection.path, "dependencies", 2);
+    }
+    return [];
+  }, [selection, data.edges]);
 
   // Helper to check whether a path or node is currently hovered
   const isFileHovered = (path: string) =>
@@ -394,6 +424,40 @@ export function DetailPane({
                     })}
                   </div>
                 </div>
+
+                {/* Collapsible Insights Section: Starts collapsed, never the first thing seen */}
+                <div className="border-t border-surface-border">
+                  <button
+                    type="button"
+                    onClick={() => setRepoInsightsOpen((prev) => !prev)}
+                    className="w-full flex items-center justify-between p-3 bg-surface hover:bg-surface-subtle transition-colors cursor-pointer text-left select-none"
+                    title="Toggle repository insights"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-text text-[10px]">
+                        {repoInsightsOpen ? "▼" : "▶"}
+                      </span>
+                      <span className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                        Insights
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-text tabular-nums bg-surface-subtle px-1.5 py-0.5 rounded border border-surface-border">
+                      {repoInsights.totalFacts} facts
+                    </span>
+                  </button>
+
+                  {repoInsightsOpen && (
+                    <div className="p-3 bg-surface-subtle/20 border-t border-surface-border space-y-3">
+                      <InsightsPanel
+                        data={data}
+                        onSelectFile={onSelectFile}
+                        onHoverFile={(path) =>
+                          onHoverTargetChange?.(path ? { type: "file", path } : null)
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -468,123 +532,319 @@ export function DetailPane({
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Section: Depends On (Dependencies) */}
-                {/* "how many things it depends on ... then the full list" */}
-                {/* Acceptance check 3: "The import and dependent counts in the pane match the number of rows listed underneath them." */}
-                <div className="p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="text-amber-500">→</span>
-                      <span>Depends On ({fileDetail.dependencies.length})</span>
-                    </div>
+                  {/* Phase 6: Blast Radius & Dependency Chain Action Buttons */}
+                  {/* "Both appear as buttons in the detail pane, and both return instantly." */}
+                  <div className="pt-2 flex items-center gap-1.5 font-mono text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTransitiveMode((prev) =>
+                          prev === "blastRadius" ? "direct" : "blastRadius"
+                        )
+                      }
+                      className={`flex-1 py-1.5 px-2 rounded border text-center transition-colors cursor-pointer ${
+                        transitiveMode === "blastRadius"
+                          ? "bg-accent text-accent-foreground border-accent font-semibold shadow-xs"
+                          : "border-surface-border bg-surface-subtle hover:bg-surface text-foreground"
+                      }`}
+                      title="Everything that breaks if this file changes (2 levels deep)"
+                    >
+                      <span>Blast radius</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTransitiveMode((prev) =>
+                          prev === "dependencyChain" ? "direct" : "dependencyChain"
+                        )
+                      }
+                      className={`flex-1 py-1.5 px-2 rounded border text-center transition-colors cursor-pointer ${
+                        transitiveMode === "dependencyChain"
+                          ? "bg-accent text-accent-foreground border-accent font-semibold shadow-xs"
+                          : "border-surface-border bg-surface-subtle hover:bg-surface text-foreground"
+                      }`}
+                      title="Everything this file needs (2 levels deep)"
+                    >
+                      <span>Dependency chain</span>
+                    </button>
                   </div>
-
-                  {fileDetail.dependencies.length === 0 ? (
-                    <div className="text-[10px] text-muted-text/80 italic py-1">
-                      This file imports nothing within the repository.
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {fileDetail.dependencies.map((item) => {
-                        const isHovered = isFileHovered(item.path);
-
-                        return (
-                          <div
-                            key={item.path}
-                            onClick={() => onSelectFile(item.path)}
-                            onMouseEnter={() =>
-                              onHoverTargetChange?.({
-                                type: "file",
-                                path: item.path,
-                                nodeId: item.nodeId,
-                              })
-                            }
-                            onMouseLeave={() => onHoverTargetChange?.(null)}
-                            className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
-                              isHovered
-                                ? "bg-accent/20 border-accent text-foreground"
-                                : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
-                            }`}
-                            title={`${item.path}\nKind: ${item.kind.name}\n(Click to select on map)`}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                              <span
-                                className="h-2 w-2 rounded-xs shrink-0"
-                                style={{ backgroundColor: item.kind.color }}
-                                aria-hidden="true"
-                              />
-                              <span className="truncate">{item.path}</span>
-                            </div>
-                            <span className="text-[10px] text-muted-text/70 tabular-nums shrink-0 ml-1">
-                              {item.file ? `${item.file.lines}L` : ""}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
 
-                {/* Section: Depended On By (Dependents) */}
-                {/* "how many depend on it, then the full list of each" */}
-                {/* Acceptance check 3: "The import and dependent counts in the pane match the number of rows listed underneath them." */}
-                <div className="p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="text-emerald-500">←</span>
-                      <span>
-                        Depended On By ({fileDetail.dependents.length})
-                      </span>
+                {/* VIEW MODE: BLAST RADIUS */}
+                {transitiveMode === "blastRadius" && (
+                  <div className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="text-emerald-500">←</span>
+                        <span>Blast Radius ({blastRadiusItems.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTransitiveMode("direct")}
+                        className="text-[10px] text-muted-text hover:text-foreground underline cursor-pointer"
+                      >
+                        Direct view
+                      </button>
                     </div>
+                    <div className="text-[10px] text-muted-text">
+                      Files that break if this file changes (2 levels deep):
+                    </div>
+
+                    {blastRadiusItems.length === 0 ? (
+                      <div className="text-[10px] text-muted-text/80 italic py-1">
+                        No internal files are in this file&apos;s blast radius.
+                      </div>
+                    ) : (
+                      <div className="space-y-1 pt-1">
+                        {blastRadiusItems.map((item) => {
+                          const file = fileMap.get(item.path);
+                          const kind = identifyFileKind(item.path);
+                          const isHovered = isFileHovered(item.path);
+                          const nodeId = folding.fileToNodeId.get(item.path);
+
+                          return (
+                            <div
+                              key={item.path}
+                              onClick={() => onSelectFile(item.path)}
+                              onMouseEnter={() =>
+                                onHoverTargetChange?.({
+                                  type: "file",
+                                  path: item.path,
+                                  nodeId,
+                                })
+                              }
+                              onMouseLeave={() => onHoverTargetChange?.(null)}
+                              className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
+                                isHovered
+                                  ? "bg-accent/20 border-accent text-foreground"
+                                  : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
+                              }`}
+                              title={`${item.path}\nDepth: ${item.depth} hop${item.depth > 1 ? "s" : ""}\nKind: ${kind.name}\n(Click to select on map)`}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                                <span
+                                  className="h-2 w-2 rounded-xs shrink-0"
+                                  style={{ backgroundColor: kind.color }}
+                                  aria-hidden="true"
+                                />
+                                <span className="truncate">{item.path}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-surface-subtle text-muted-text border border-surface-border">
+                                  {item.depth === 1 ? "1 hop" : "2 hops"}
+                                </span>
+                                {file && (
+                                  <span className="text-[10px] text-muted-text/70 tabular-nums">
+                                    {file.lines}L
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
+                )}
 
-                  {fileDetail.dependents.length === 0 ? (
-                    <div className="text-[10px] text-muted-text/80 italic py-1">
-                      No internal files depend on this file.
+                {/* VIEW MODE: DEPENDENCY CHAIN */}
+                {transitiveMode === "dependencyChain" && (
+                  <div className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <span className="text-amber-500">→</span>
+                        <span>Dependency Chain ({dependencyChainItems.length})</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setTransitiveMode("direct")}
+                        className="text-[10px] text-muted-text hover:text-foreground underline cursor-pointer"
+                      >
+                        Direct view
+                      </button>
                     </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {fileDetail.dependents.map((item) => {
-                        const isHovered = isFileHovered(item.path);
+                    <div className="text-[10px] text-muted-text">
+                      Everything this file needs (2 levels deep):
+                    </div>
 
-                        return (
-                          <div
-                            key={item.path}
-                            onClick={() => onSelectFile(item.path)}
-                            onMouseEnter={() =>
-                              onHoverTargetChange?.({
-                                type: "file",
-                                path: item.path,
-                                nodeId: item.nodeId,
-                              })
-                            }
-                            onMouseLeave={() => onHoverTargetChange?.(null)}
-                            className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
-                              isHovered
-                                ? "bg-accent/20 border-accent text-foreground"
-                                : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
-                            }`}
-                            title={`${item.path}\nKind: ${item.kind.name}\n(Click to select on map)`}
-                          >
-                            <div className="flex items-center gap-1.5 min-w-0 pr-1">
-                              <span
-                                className="h-2 w-2 rounded-xs shrink-0"
-                                style={{ backgroundColor: item.kind.color }}
-                                aria-hidden="true"
-                              />
-                              <span className="truncate">{item.path}</span>
+                    {dependencyChainItems.length === 0 ? (
+                      <div className="text-[10px] text-muted-text/80 italic py-1">
+                        This file has no dependencies within the repository.
+                      </div>
+                    ) : (
+                      <div className="space-y-1 pt-1">
+                        {dependencyChainItems.map((item) => {
+                          const file = fileMap.get(item.path);
+                          const kind = identifyFileKind(item.path);
+                          const isHovered = isFileHovered(item.path);
+                          const nodeId = folding.fileToNodeId.get(item.path);
+
+                          return (
+                            <div
+                              key={item.path}
+                              onClick={() => onSelectFile(item.path)}
+                              onMouseEnter={() =>
+                                onHoverTargetChange?.({
+                                  type: "file",
+                                  path: item.path,
+                                  nodeId,
+                                })
+                              }
+                              onMouseLeave={() => onHoverTargetChange?.(null)}
+                              className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
+                                isHovered
+                                  ? "bg-accent/20 border-accent text-foreground"
+                                  : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
+                              }`}
+                              title={`${item.path}\nDepth: ${item.depth} hop${item.depth > 1 ? "s" : ""}\nKind: ${kind.name}\n(Click to select on map)`}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                                <span
+                                  className="h-2 w-2 rounded-xs shrink-0"
+                                  style={{ backgroundColor: kind.color }}
+                                  aria-hidden="true"
+                                />
+                                <span className="truncate">{item.path}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                                <span className="text-[9px] px-1 py-0.2 rounded bg-surface-subtle text-muted-text border border-surface-border">
+                                  {item.depth === 1 ? "1 hop" : "2 hops"}
+                                </span>
+                                {file && (
+                                  <span className="text-[10px] text-muted-text/70 tabular-nums">
+                                    {file.lines}L
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <span className="text-[10px] text-muted-text/70 tabular-nums shrink-0 ml-1">
-                              {item.file ? `${item.file.lines}L` : ""}
-                            </span>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* VIEW MODE: DIRECT (Default) */}
+                {transitiveMode === "direct" && (
+                  <>
+                    {/* Section: Depends On (Dependencies) */}
+                    {/* "how many things it depends on ... then the full list" */}
+                    {/* Acceptance check 3: "The import and dependent counts in the pane match the number of rows listed underneath them." */}
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="text-amber-500">→</span>
+                          <span>Depends On ({fileDetail.dependencies.length})</span>
+                        </div>
+                      </div>
+
+                      {fileDetail.dependencies.length === 0 ? (
+                        <div className="text-[10px] text-muted-text/80 italic py-1">
+                          This file imports nothing within the repository.
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {fileDetail.dependencies.map((item) => {
+                            const isHovered = isFileHovered(item.path);
+
+                            return (
+                              <div
+                                key={item.path}
+                                onClick={() => onSelectFile(item.path)}
+                                onMouseEnter={() =>
+                                  onHoverTargetChange?.({
+                                    type: "file",
+                                    path: item.path,
+                                    nodeId: item.nodeId,
+                                  })
+                                }
+                                onMouseLeave={() => onHoverTargetChange?.(null)}
+                                className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
+                                  isHovered
+                                    ? "bg-accent/20 border-accent text-foreground"
+                                    : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
+                                }`}
+                                title={`${item.path}\nKind: ${item.kind.name}\n(Click to select on map)`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                                  <span
+                                    className="h-2 w-2 rounded-xs shrink-0"
+                                    style={{ backgroundColor: item.kind.color }}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">{item.path}</span>
+                                </div>
+                                <span className="text-[10px] text-muted-text/70 tabular-nums shrink-0 ml-1">
+                                  {item.file ? `${item.file.lines}L` : ""}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+
+                    {/* Section: Depended On By (Dependents) */}
+                    {/* "how many depend on it, then the full list of each" */}
+                    {/* Acceptance check 3: "The import and dependent counts in the pane match the number of rows listed underneath them." */}
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-[11px] font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <span className="text-emerald-500">←</span>
+                          <span>
+                            Depended On By ({fileDetail.dependents.length})
+                          </span>
+                        </div>
+                      </div>
+
+                      {fileDetail.dependents.length === 0 ? (
+                        <div className="text-[10px] text-muted-text/80 italic py-1">
+                          No internal files depend on this file.
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          {fileDetail.dependents.map((item) => {
+                            const isHovered = isFileHovered(item.path);
+
+                            return (
+                              <div
+                                key={item.path}
+                                onClick={() => onSelectFile(item.path)}
+                                onMouseEnter={() =>
+                                  onHoverTargetChange?.({
+                                    type: "file",
+                                    path: item.path,
+                                    nodeId: item.nodeId,
+                                  })
+                                }
+                                onMouseLeave={() => onHoverTargetChange?.(null)}
+                                className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
+                                  isHovered
+                                    ? "bg-accent/20 border-accent text-foreground"
+                                    : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
+                                }`}
+                                title={`${item.path}\nKind: ${item.kind.name}\n(Click to select on map)`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                                  <span
+                                    className="h-2 w-2 rounded-xs shrink-0"
+                                    style={{ backgroundColor: item.kind.color }}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">{item.path}</span>
+                                </div>
+                                <span className="text-[10px] text-muted-text/70 tabular-nums shrink-0 ml-1">
+                                  {item.file ? `${item.file.lines}L` : ""}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 

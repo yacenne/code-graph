@@ -21,6 +21,8 @@ import {
 } from "@/lib/canvas/layout";
 import { FoldedNode } from "./folded-node";
 import { OpenPanelNode } from "./open-panel-node";
+import { InsightsPanel } from "./insights-panel";
+import { computeRepositoryInsights } from "@/lib/canvas/graph-math";
 
 const nodeTypes: NodeTypes = {
   folded: FoldedNode,
@@ -36,6 +38,9 @@ export interface CanvasViewProps {
   onOpenNodeIdsChange?: React.Dispatch<React.SetStateAction<Set<string>>>;
   hoveredTarget?: HoverTarget | null;
   onHoverTargetChange?: (target: HoverTarget | null) => void;
+  selectedCategoryId?: string | null;
+  onSelectFile?: (filePath: string) => void;
+  onSelectNode?: (nodeId: string) => void;
 }
 
 function CanvasViewInner({
@@ -47,8 +52,14 @@ function CanvasViewInner({
   onOpenNodeIdsChange,
   hoveredTarget,
   onHoverTargetChange,
+  selectedCategoryId,
+  onSelectFile,
 }: CanvasViewProps) {
   const { getViewport, setViewport, fitView } = useReactFlow();
+
+  // Bottom drawer state: "Insights render in a panel that starts collapsed"
+  const [insightsDrawerOpen, setInsightsDrawerOpen] = useState(false);
+  const repoInsights = useMemo(() => computeRepositoryInsights(data), [data]);
 
   // 1. Compute pure folding over data files and edges if not provided
   const internalFolding = useMemo(() => {
@@ -72,8 +83,8 @@ function CanvasViewInner({
 
   // 3. Compute deterministic layout and node/edge models
   const { nodes: rawNodes, edges: rawEdges } = useMemo(() => {
-    return computeGraphLayout(folding, openNodeIds, selection, hoveredTarget);
-  }, [folding, openNodeIds, selection, hoveredTarget]);
+    return computeGraphLayout(folding, openNodeIds, selection, hoveredTarget, selectedCategoryId);
+  }, [folding, openNodeIds, selection, hoveredTarget, selectedCategoryId]);
 
   // Refit constraint: "Opening a folder refits the view so the new panel is visible.
   // Refitting on open may only ever zoom out, never in."
@@ -267,22 +278,77 @@ function CanvasViewInner({
         </button>
       </div>
 
-      {/* Status Bar / Legend (Bottom-Left) */}
-      <div className="absolute bottom-3 left-3 z-20 flex items-center gap-3 rounded border border-surface-border bg-surface/90 px-2.5 py-1 backdrop-blur-xs font-mono text-[10px] text-muted-text shadow-sm pointer-events-none">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span>incoming (in)</span>
+      {/* Status Bar / Legend & Insights Drawer Toggle (Bottom-Left) */}
+      <div className="absolute bottom-3 left-3 z-20 flex items-center gap-2">
+        <div className="flex items-center gap-3 rounded border border-surface-border bg-surface/90 px-2.5 py-1 backdrop-blur-xs font-mono text-[10px] text-muted-text shadow-sm pointer-events-none">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>incoming (in)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-amber-500" />
+            <span>outgoing (out)</span>
+          </div>
+          <div className="border-l border-surface-border pl-2 text-foreground font-semibold">
+            {openNodeIds.size > 0
+              ? `${openNodeIds.size} open`
+              : "all folded"}
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-amber-500" />
-          <span>outgoing (out)</span>
-        </div>
-        <div className="border-l border-surface-border pl-2 text-foreground font-semibold">
-          {openNodeIds.size > 0
-            ? `${openNodeIds.size} open`
-            : "all folded"}
-        </div>
+
+        {/* Collapsible Insights Drawer Button (Starts collapsed per spec) */}
+        <button
+          type="button"
+          onClick={() => setInsightsDrawerOpen((prev) => !prev)}
+          className={`h-7 px-2.5 rounded border font-mono text-[11px] flex items-center gap-1.5 backdrop-blur-xs transition-colors cursor-pointer shadow-sm ${
+            insightsDrawerOpen
+              ? "bg-accent text-accent-foreground border-accent font-semibold"
+              : "bg-surface/90 border-surface-border text-foreground hover:bg-surface"
+          }`}
+          title="Toggle repository insights drawer"
+        >
+          <span className="text-[10px]">{insightsDrawerOpen ? "▼" : "▶"}</span>
+          <span>Insights</span>
+          <span className="text-[10px] opacity-80 tabular-nums">
+            ({repoInsights.totalFacts})
+          </span>
+        </button>
       </div>
+
+      {/* Floating Collapsible Insights Drawer (Bottom-Left to Bottom-Center) */}
+      {insightsDrawerOpen && (
+        <div className="absolute bottom-12 left-3 z-30 w-96 max-h-[420px] flex flex-col rounded-md border border-surface-border bg-surface shadow-xl overflow-hidden font-mono text-xs">
+          <div className="flex h-8 items-center justify-between border-b border-surface-border bg-surface-subtle px-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                Insights Panel
+              </span>
+              <span className="text-[10px] text-muted-text tabular-nums">
+                ({repoInsights.totalFacts} facts)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setInsightsDrawerOpen(false)}
+              className="h-5 w-5 rounded flex items-center justify-center text-muted-text hover:text-foreground hover:bg-surface-border/50 transition-colors"
+              title="Close insights drawer"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-3 overflow-y-auto max-h-[380px]">
+            <InsightsPanel
+              data={data}
+              onSelectFile={(path) => {
+                onSelectFile?.(path);
+              }}
+              onHoverFile={(path) => {
+                onHoverTargetChange?.(path ? { type: "file", path } : null);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
