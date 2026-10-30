@@ -4,6 +4,7 @@ import "@/lib/env";
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/preview(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

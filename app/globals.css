@@ -63,3 +63,94 @@ body {
   font-family: var(--font-sans);
   margin: 0;
 }
+
+/* Clerk Component Overrides for Dark & Light Themes */
+.cl-rootBox {
+  display: flex;
+  align-items: center;
+}
+
+.cl-organizationSwitcherTrigger {
+  color: var(--foreground) !important;
+  background-color: var(--surface-subtle) !important;
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 4px !important;
+  padding: 2px 8px !important;
+  height: 26px !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.cl-organizationSwitcherTrigger:hover {
+  background-color: var(--surface) !important;
+  border-color: var(--foreground) !important;
+}
+
+.cl-organizationPreview {
+  gap: 6px !important;
+}
+
+.cl-organizationPreviewTextContainer {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.cl-organizationPreviewMainIdentifier {
+  color: var(--foreground) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+}
+
+.cl-organizationSwitcherTriggerIcon {
+  color: var(--foreground) !important;
+  opacity: 0.8 !important;
+  width: 12px !important;
+  height: 12px !important;
+  margin-left: 4px !important;
+}
+
+.cl-organizationSwitcherPopoverCard,
+.cl-userButtonPopoverCard {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--surface-border) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  font-family: var(--font-mono) !important;
+}
+
+.cl-organizationSwitcherPopoverActions,
+.cl-organizationList {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+}
+
+.cl-organizationSwitcherPopoverActionButton,
+.cl-organizationListItem,
+.cl-userButtonPopoverActionButton {
+  color: var(--foreground) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  border-radius: 4px !important;
+}
+
+.cl-organizationSwitcherPopoverActionButton:hover,
+.cl-organizationListItem:hover,
+.cl-userButtonPopoverActionButton:hover {
+  background-color: var(--surface-subtle) !important;
+  color: var(--foreground) !important;
+}
+
+.cl-organizationPreviewSecondaryIdentifier {
+  color: var(--muted-text) !important;
+  font-size: 10px !important;
+}
+
+.cl-organizationSwitcherPopoverFooter,
+.cl-userButtonPopoverFooter {
+  background-color: var(--surface-subtle) !important;
+  border-top: 1px solid var(--surface-border) !important;
+}
+
