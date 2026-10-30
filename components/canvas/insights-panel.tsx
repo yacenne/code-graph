@@ -54,6 +54,7 @@ export function InsightsPanel({
             <button
               type="button"
               onClick={() => toggleSection(section.kind)}
+              aria-expanded={isExpanded}
               className="w-full flex items-center justify-between p-2.5 bg-surface-subtle/60 hover:bg-surface-subtle transition-colors cursor-pointer text-left select-none"
             >
               <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -146,12 +147,15 @@ export function InsightsPanel({
                       const color = CATEGORY_TOKENS[categoryId]?.color ?? "#71717a";
 
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={item.path}
                           onClick={() => onSelectFile(item.path)}
                           onMouseEnter={() => onHoverFile?.(item.path)}
                           onMouseLeave={() => onHoverFile?.(null)}
-                          className="flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer hover:bg-surface-subtle border border-transparent hover:border-surface-border text-foreground transition-colors"
+                          onFocus={() => onHoverFile?.(item.path)}
+                          onBlur={() => onHoverFile?.(null)}
+                          className="w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer hover:bg-surface-subtle focus:bg-surface-subtle border border-transparent hover:border-surface-border focus:border-accent text-foreground transition-colors text-left font-mono"
                           title={`${item.path}\n${item.detail ?? ""}\n(Click to select on map)`}
                         >
                           <div className="flex items-center gap-1.5 min-w-0 pr-1">
@@ -163,9 +167,15 @@ export function InsightsPanel({
                             <span className="truncate">{item.path}</span>
                           </div>
                           <span className="text-[10px] text-muted-text tabular-nums shrink-0 ml-1">
-                            {item.lines ? `${item.lines}L` : item.fanIn ? `←${item.fanIn}` : ""}
+                            {section.kind === "high-fan-in"
+                              ? `←${item.fanIn}`
+                              : item.lines
+                              ? `${item.lines}L`
+                              : item.fanIn
+                              ? `←${item.fanIn}`
+                              : ""}
                           </span>
-                        </div>
+                        </button>
                       );
                     })}
                     {section.fileItems.length > 30 && (

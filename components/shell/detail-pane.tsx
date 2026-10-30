@@ -538,6 +538,7 @@ export function DetailPane({
                   <div className="pt-2 flex items-center gap-1.5 font-mono text-[11px]">
                     <button
                       type="button"
+                      aria-pressed={transitiveMode === "blastRadius"}
                       onClick={() =>
                         setTransitiveMode((prev) =>
                           prev === "blastRadius" ? "direct" : "blastRadius"
@@ -554,6 +555,7 @@ export function DetailPane({
                     </button>
                     <button
                       type="button"
+                      aria-pressed={transitiveMode === "dependencyChain"}
                       onClick={() =>
                         setTransitiveMode((prev) =>
                           prev === "dependencyChain" ? "direct" : "dependencyChain"
@@ -604,7 +606,8 @@ export function DetailPane({
                           const nodeId = folding.fileToNodeId.get(item.path);
 
                           return (
-                            <div
+                            <button
+                              type="button"
                               key={item.path}
                               onClick={() => onSelectFile(item.path)}
                               onMouseEnter={() =>
@@ -615,10 +618,18 @@ export function DetailPane({
                                 })
                               }
                               onMouseLeave={() => onHoverTargetChange?.(null)}
-                              className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
+                              onFocus={() =>
+                                onHoverTargetChange?.({
+                                  type: "file",
+                                  path: item.path,
+                                  nodeId,
+                                })
+                              }
+                              onBlur={() => onHoverTargetChange?.(null)}
+                              className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border text-left font-mono ${
                                 isHovered
                                   ? "bg-accent/20 border-accent text-foreground"
-                                  : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
+                                  : "border-transparent hover:bg-surface-subtle hover:border-surface-border focus:bg-surface-subtle focus:border-accent text-foreground"
                               }`}
                               title={`${item.path}\nDepth: ${item.depth} hop${item.depth > 1 ? "s" : ""}\nKind: ${kind.name}\n(Click to select on map)`}
                             >
@@ -640,7 +651,7 @@ export function DetailPane({
                                   </span>
                                 )}
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
@@ -681,7 +692,8 @@ export function DetailPane({
                           const nodeId = folding.fileToNodeId.get(item.path);
 
                           return (
-                            <div
+                            <button
+                              type="button"
                               key={item.path}
                               onClick={() => onSelectFile(item.path)}
                               onMouseEnter={() =>
@@ -692,10 +704,18 @@ export function DetailPane({
                                 })
                               }
                               onMouseLeave={() => onHoverTargetChange?.(null)}
-                              className={`flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border ${
+                              onFocus={() =>
+                                onHoverTargetChange?.({
+                                  type: "file",
+                                  path: item.path,
+                                  nodeId,
+                                })
+                              }
+                              onBlur={() => onHoverTargetChange?.(null)}
+                              className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[11px] cursor-pointer transition-colors border text-left font-mono ${
                                 isHovered
                                   ? "bg-accent/20 border-accent text-foreground"
-                                  : "border-transparent hover:bg-surface-subtle hover:border-surface-border text-foreground"
+                                  : "border-transparent hover:bg-surface-subtle hover:border-surface-border focus:bg-surface-subtle focus:border-accent text-foreground"
                               }`}
                               title={`${item.path}\nDepth: ${item.depth} hop${item.depth > 1 ? "s" : ""}\nKind: ${kind.name}\n(Click to select on map)`}
                             >
@@ -717,7 +737,7 @@ export function DetailPane({
                                   </span>
                                 )}
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

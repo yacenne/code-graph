@@ -35,7 +35,8 @@ function verifyPhase06() {
     sampleRepoData.edges.filter((e) => e.target === testFile).map((e) => e.source)
   );
   const blastDepth1 = blastRadius.filter((b) => b.depth === 1);
-  const allBlastDepth1Direct = blastDepth1.every((b) => directDependents.has(b.path));
+  const allBlastDepth1Direct =
+    blastDepth1.length > 0 && blastDepth1.every((b) => directDependents.has(b.path));
   console.log(
     `   - Blast radius Depth 1 accuracy: ${allBlastDepth1Direct ? 'PASS' : 'FAIL'} (${blastDepth1.length} files)`
   );
@@ -43,9 +44,11 @@ function verifyPhase06() {
   // Every item at depth 2 in blast radius must import a depth 1 file
   const blastDepth1Set = new Set(blastDepth1.map((b) => b.path));
   const blastDepth2 = blastRadius.filter((b) => b.depth === 2);
-  const allBlastDepth2Valid = blastDepth2.every((b) =>
-    sampleRepoData.edges.some((e) => e.source === b.path && blastDepth1Set.has(e.target))
-  );
+  const allBlastDepth2Valid =
+    blastDepth2.length > 0 &&
+    blastDepth2.every((b) =>
+      sampleRepoData.edges.some((e) => e.source === b.path && blastDepth1Set.has(e.target))
+    );
   console.log(
     `   - Blast radius Depth 2 accuracy: ${allBlastDepth2Valid ? 'PASS' : 'FAIL'} (${blastDepth2.length} files)`
   );
@@ -96,6 +99,9 @@ function verifyPhase06() {
     'lib/utils/calculator.ts',
     'server/src/helpers/orphan.ts',
     'packages/math/src/helper.ts',
+    'lib/route.ts',
+    'packages/core/src/layout.ts',
+    'utils/middleware.ts',
   ];
   const allNonFrameworkIncluded = nonFrameworkFiles.every((p) => !isFrameworkReachable(p));
   console.log(

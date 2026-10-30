@@ -85,32 +85,41 @@ export function isFrameworkReachable(filePath: string): boolean {
   const fileName = segments[segments.length - 1];
   const baseName = fileName.replace(/\.[^.]+$/, '');
 
-  // 1. Pages and routes (Next.js App Router, Remix, SvelteKit, Astro)
-  if (baseName === 'page' || baseName === 'route') {
+  // 1. Next.js App Router special files: match only when path contains an 'app' segment
+  // (e.g. app/page.tsx, src/app/dashboard/layout.tsx, app/api/route.ts)
+  const isInsideApp = segments.includes('app');
+  if (
+    isInsideApp &&
+    [
+      'page',
+      'route',
+      'layout',
+      'template',
+      'error',
+      'global-error',
+      'loading',
+      'not-found',
+      'default',
+    ].includes(baseName)
+  ) {
     return true;
   }
 
-  // 2. Layouts and templates
-  if (baseName === 'layout' || baseName === 'template') {
+  // 2. Next.js Pages router: match only under root-level 'pages' or 'src/pages'
+  // (e.g. pages/index.tsx, pages/api/hello.ts, src/pages/about.tsx)
+  if (segments[0] === 'pages' || (segments[0] === 'src' && segments[1] === 'pages')) {
     return true;
   }
 
-  // 3. Framework routing special files
-  if (['error', 'global-error', 'loading', 'not-found', 'default'].includes(baseName)) {
+  // 3. Middleware, proxy, or instrumentation: match only at repository root or directly under src
+  // (e.g. middleware.ts, proxy.ts, src/middleware.ts, src/instrumentation.ts)
+  const isRootOrSrc =
+    segments.length === 1 || (segments.length === 2 && segments[0] === 'src');
+  if (isRootOrSrc && ['middleware', 'proxy', 'instrumentation'].includes(baseName)) {
     return true;
   }
 
-  // 4. Pages router directory convention (pages/* or src/pages/*)
-  if (segments.includes('pages')) {
-    return true;
-  }
-
-  // 5. Middleware, proxy, and instrumentation entrypoints
-  if (['middleware', 'proxy', 'instrumentation'].includes(baseName)) {
-    return true;
-  }
-
-  // 6. Configuration files (*.config.* or standard root configs)
+  // 4. Configuration files (*.config.* or standard root configs)
   if (fileName.includes('.config.')) {
     return true;
   }

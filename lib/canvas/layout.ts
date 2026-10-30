@@ -179,10 +179,10 @@ export function computeGraphLayout(
       : undefined;
 
     let isDimmed = false;
-    if (isAnySelected) {
+    if (selectedCategoryId && categoryMatchCount === 0 && !isHovered) {
+      isDimmed = true;
+    } else if (isAnySelected) {
       isDimmed = !activeNodeIds.has(n.id) && !isHovered;
-    } else if (selectedCategoryId) {
-      isDimmed = categoryMatchCount === 0 && !isHovered;
     }
 
     const position = {
@@ -299,10 +299,10 @@ export function computeGraphLayout(
       }
 
       let isDimmed = false;
-      if (isAnySelected) {
+      if (selectedCategoryId && !isEdgeMatchingCategory && !isEdgeHovered) {
+        isDimmed = true;
+      } else if (isAnySelected) {
         isDimmed = !isEdgeActive && !isEdgeHovered;
-      } else if (selectedCategoryId) {
-        isDimmed = !isEdgeMatchingCategory && !isEdgeHovered;
       }
 
       let strokeColor = '#52525b';
@@ -388,10 +388,10 @@ export function computeGraphLayout(
     }
 
     let isDimmed = false;
-    if (isAnySelected) {
+    if (selectedCategoryId && !isEdgeMatchingCategory && !isEdgeHovered) {
+      isDimmed = true;
+    } else if (isAnySelected) {
       isDimmed = !isEdgeActive && !isEdgeHovered;
-    } else if (selectedCategoryId) {
-      isDimmed = !isEdgeMatchingCategory && !isEdgeHovered;
     }
 
     let strokeColor = '#52525b';

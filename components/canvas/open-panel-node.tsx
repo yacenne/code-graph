@@ -138,7 +138,7 @@ export const OpenPanelNode = memo(function OpenPanelNode({
                 onHoverFile?.(null);
               }}
               style={{
-                opacity: !isCategoryMatch && !isFileHovered && !isFileSelected ? 0.25 : 1,
+                opacity: !isCategoryMatch && !isFileHovered ? 0.25 : 1,
               }}
               className={`relative h-7 px-3 flex items-center justify-between font-mono text-[11px] cursor-pointer transition-all ${
                 isFileSelected
