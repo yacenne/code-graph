@@ -7,7 +7,17 @@ import type { FoldedNodeType } from "@/lib/canvas/layout";
 export const FoldedNode = memo(function FoldedNode({
   data,
 }: NodeProps<FoldedNodeType>) {
-  const { nodeData, isSelected, isDimmed, isHovered, onToggleOpen, onSelectNode, onHoverNode } = data;
+  const {
+    nodeData,
+    isSelected,
+    isDimmed,
+    isHovered,
+    categoryMatchCount,
+    selectedCategoryId,
+    onToggleOpen,
+    onSelectNode,
+    onHoverNode,
+  } = data;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -69,9 +79,15 @@ export const FoldedNode = memo(function FoldedNode({
         </button>
       </div>
 
-      {/* Bottom: Metrics & File Count */}
+      {/* Bottom: Metrics & File Count / Match Count */}
       <div className="flex items-center justify-between font-mono text-[10px] text-muted-text mt-0.5">
-        <span className="tabular-nums">{nodeData.fileCount} files</span>
+        {selectedCategoryId ? (
+          <span className="font-semibold text-accent tabular-nums">
+            {categoryMatchCount ?? 0} matched
+          </span>
+        ) : (
+          <span className="tabular-nums">{nodeData.fileCount} files</span>
+        )}
         <span className="tabular-nums opacity-75">
           {nodeData.fanIn > 0 ? `←${nodeData.fanIn}` : ""}
           {nodeData.fanOut > 0 ? ` →${nodeData.fanOut}` : ""}

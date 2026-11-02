@@ -1,6 +1,7 @@
 import dagre from 'dagre';
 import type { Node, Edge } from '@xyflow/react';
 import type { FoldedNodeData, FoldingResult } from './folding';
+import { classifyFileCategory } from './categories';
 
 export const MAX_VISIBLE_ROWS = 10;
 export const OPEN_PANEL_WIDTH = 290;
@@ -18,6 +19,8 @@ export interface FoldedNodePropsData {
   isSelected: boolean;
   isDimmed: boolean;
   isHovered: boolean;
+  categoryMatchCount?: number;
+  selectedCategoryId?: string | null;
   onToggleOpen: (nodeId: string) => void;
   onSelectNode: (nodeId: string) => void;
   onHoverNode?: (nodeId: string | null) => void;
@@ -33,6 +36,8 @@ export interface OpenPanelPropsData {
   selectedFilePath: string | null;
   hoveredFilePath: string | null;
   activeFilePaths: Set<string>;
+  categoryMatchCount?: number;
+  selectedCategoryId?: string | null;
   onClose: (nodeId: string) => void;
   onSelectNode: (nodeId: string) => void;
   onSelectFile: (filePath: string, nodeId: string) => void;
@@ -60,7 +65,8 @@ export function computeGraphLayout(
   folding: FoldingResult,
   openNodeIds: Set<string>,
   selection: SelectionState | null,
-  hoveredTarget?: HoverTarget | null
+  hoveredTarget?: HoverTarget | null,
+  selectedCategoryId?: string | null
 ): {
   nodes: CanvasNode[];
   edges: Edge[];
@@ -168,7 +174,16 @@ export function computeGraphLayout(
         ? hoveredTarget.nodeId === n.id || n.files.some((f) => f.path === hoveredTarget.path)
         : false;
 
-    const isDimmed = isAnySelected && !activeNodeIds.has(n.id) && !isHovered;
+    const categoryMatchCount = selectedCategoryId
+      ? n.files.filter((f) => classifyFileCategory(f.path) === selectedCategoryId).length
+      : undefined;
+
+    let isDimmed = false;
+    if (selectedCategoryId && categoryMatchCount === 0 && !isHovered) {
+      isDimmed = true;
+    } else if (isAnySelected) {
+      isDimmed = !activeNodeIds.has(n.id) && !isHovered;
+    }
 
     const position = {
       x: dagrePos.x - dims.width / 2,
@@ -188,6 +203,8 @@ export function computeGraphLayout(
           isSelected,
           isDimmed,
           isHovered,
+          categoryMatchCount,
+          selectedCategoryId,
           selectedFilePath:
             selection?.type === 'file' && selection.nodeId === n.id
               ? selection.path ?? null
@@ -213,6 +230,8 @@ export function computeGraphLayout(
         isSelected,
         isDimmed,
         isHovered,
+        categoryMatchCount,
+        selectedCategoryId,
         onToggleOpen: () => {},
         onSelectNode: () => {},
       },
@@ -272,7 +291,19 @@ export function computeGraphLayout(
         }
       }
 
-      const isDimmed = isAnySelected && !isEdgeActive && !isEdgeHovered;
+      let isEdgeMatchingCategory = true;
+      if (selectedCategoryId) {
+        isEdgeMatchingCategory =
+          classifyFileCategory(e.sourceFile) === selectedCategoryId ||
+          classifyFileCategory(e.targetFile) === selectedCategoryId;
+      }
+
+      let isDimmed = false;
+      if (selectedCategoryId && !isEdgeMatchingCategory && !isEdgeHovered) {
+        isDimmed = true;
+      } else if (isAnySelected) {
+        isDimmed = !isEdgeActive && !isEdgeHovered;
+      }
 
       let strokeColor = '#52525b';
       let strokeWidth = 1.25;
@@ -347,7 +378,21 @@ export function computeGraphLayout(
       }
     }
 
-    const isDimmed = isAnySelected && !isEdgeActive && !isEdgeHovered;
+    let isEdgeMatchingCategory = true;
+    if (selectedCategoryId) {
+      isEdgeMatchingCategory = edgeGroup.some(
+        (e) =>
+          classifyFileCategory(e.sourceFile) === selectedCategoryId ||
+          classifyFileCategory(e.targetFile) === selectedCategoryId
+      );
+    }
+
+    let isDimmed = false;
+    if (selectedCategoryId && !isEdgeMatchingCategory && !isEdgeHovered) {
+      isDimmed = true;
+    } else if (isAnySelected) {
+      isDimmed = !isEdgeActive && !isEdgeHovered;
+    }
 
     let strokeColor = '#52525b';
     let strokeWidth = 1.25;
